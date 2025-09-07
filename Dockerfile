@@ -4,11 +4,12 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Install git and other dependencies needed for building
-RUN apk add --no-cache git
+# Install git, curl, and jq for fetching latest release
+RUN apk add --no-cache git curl jq
 
-# Clone the repository
-RUN git clone https://github.com/siteboon/claudecodeui.git .
+# Get the latest release tag and clone that specific version
+RUN LATEST_TAG=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/releases/latest | jq -r '.tag_name') && \
+    git clone --branch ${LATEST_TAG} --single-branch https://github.com/siteboon/claudecodeui.git .
 
 # Install dependencies
 RUN npm install

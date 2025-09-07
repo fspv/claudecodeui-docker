@@ -1,0 +1,72 @@
+name: Check for New claudecodeui Release
+
+on:
+  schedule:
+    # Run daily at 6:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get latest claudecodeui release
+      id: upstream-release
+      run: |
+        LATEST_RELEASE=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/releases/latest | jq -r '.tag_name')
+        echo "latest_tag=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+        echo "Latest claudecodeui release: $LATEST_RELEASE"
+
+    - name: Get last built version
+      id: last-built
+      run: |
+        if [ -f LAST_BUILD_VERSION ]; then
+          LAST_BUILT=$(cat LAST_BUILD_VERSION)
+          echo "last_built=$LAST_BUILT" >> $GITHUB_OUTPUT
+          echo "Last built version: $LAST_BUILT"
+        else
+          echo "last_built=" >> $GITHUB_OUTPUT
+          echo "No previous build found"
+        fi
+
+    - name: Compare versions
+      id: compare
+      run: |
+        LATEST="${{ steps.upstream-release.outputs.latest_tag }}"
+        LAST_BUILT="${{ steps.last-built.outputs.last_built }}"
+        
+        if [ "$LATEST" != "$LAST_BUILT" ]; then
+          echo "needs_build=true" >> $GITHUB_OUTPUT
+          echo "New version detected: $LATEST (was: $LAST_BUILT)"
+        else
+          echo "needs_build=false" >> $GITHUB_OUTPUT
+          echo "Already up to date: $LATEST"
+        fi
+
+    - name: Update version file
+      if: steps.compare.outputs.needs_build == 'true'
+      run: |
+        echo "${{ steps.upstream-release.outputs.latest_tag }}" > LAST_BUILD_VERSION
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add LAST_BUILD_VERSION
+        git commit -m "chore: Update to claudecodeui ${{ steps.upstream-release.outputs.latest_tag }}"
+        git push
+
+    - name: Trigger Docker build
+      if: steps.compare.outputs.needs_build == 'true'
+      run: |
+        gh workflow run build-and-push.yml \
+          --field claudecodeui_version="${{ steps.upstream-release.outputs.latest_tag }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -79,10 +79,31 @@ docker build -t claudecodeui .
 
 Pre-built images are available on Docker Hub: `nuhotetotniksvoboden/claudecodeui`
 
-## GitHub Actions
+## Automated Builds
 
-This repository includes a GitHub Actions workflow that automatically builds and pushes Docker images to Docker Hub when changes are pushed to the main branch.
+This repository automatically tracks the [claudecodeui](https://github.com/siteboon/claudecodeui) releases and builds updated Docker images:
 
-To set up the workflow, add the following secrets to your repository:
+### Daily Automated Checks
+- A GitHub Action runs daily at 6:00 UTC to check for new claudecodeui releases
+- If a new release is detected, it automatically triggers a Docker build
+- The system ensures you always have the latest stable version available
+
+### Manual Triggering
+You can also manually trigger builds:
+```bash
+# Trigger build of latest release
+gh workflow run build-and-push.yml
+
+# Build specific version
+gh workflow run build-and-push.yml --field claudecodeui_version=v1.8.0
+```
+
+### Docker Tags
+Images are tagged with both:
+- `latest` - Always points to the most recent build
+- Version-specific tags (e.g., `v1.8.0`) - For pinning to specific claudecodeui versions
+
+### Setup Requirements
+To set up automated builds, add these repository secrets:
 - `DOCKERHUB_USERNAME` - Your Docker Hub username
 - `DOCKERHUB_TOKEN` - Your Docker Hub access token
