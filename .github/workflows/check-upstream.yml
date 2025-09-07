@@ -31,8 +31,8 @@ jobs:
       id: claude-code-version
       run: |
         LATEST_VERSION=$(npm view @anthropic-ai/claude-code version)
-        echo "latest_version=v$LATEST_VERSION" >> $GITHUB_OUTPUT
-        echo "Latest Claude Code version: v$LATEST_VERSION"
+        echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+        echo "Latest Claude Code version: $LATEST_VERSION"
 
     - name: Get last built versions
       id: last-built
