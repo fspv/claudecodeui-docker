@@ -9,6 +9,52 @@ WORKDIR /app
 # Install git, curl, jq, python, make, and g++ for fetching latest release and building native modules
 RUN apk add --no-cache git curl jq python3 make g++
 
+# Install additional utilities
+RUN apk add --no-cache \
+    bash \
+    zsh \
+    procps \
+    tar \
+    zip \
+    gzip \
+    gawk \
+    grep \
+    ripgrep \
+    which \
+    ca-certificates \
+    iputils \
+    openssh \
+    less \
+    vim \
+    neovim \
+    iproute2 \
+    netcat-openbsd \
+    tmux \
+    htop \
+    cmake \
+    make \
+    nano \
+    mandoc \
+    pwgen \
+    bat \
+    go \
+    yq \
+    fzf \
+    yarn \
+    cargo \
+    rust \
+    rust-analyzer \
+    github-cli \
+    xxd \
+    tree \
+    bind-tools \
+    sqlite \
+    lua5.4 \
+    py3-pip
+
+# Install Python packages
+RUN pip3 install --no-cache-dir --break-system-packages pyright black isort
+
 # Get the latest release tag and clone that specific version
 RUN LATEST_TAG=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/releases/latest | jq -r '.tag_name') && \
     git clone --branch ${LATEST_TAG} --single-branch https://github.com/siteboon/claudecodeui.git .
