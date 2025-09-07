@@ -4,8 +4,8 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Install git, curl, and jq for fetching latest release
-RUN apk add --no-cache git curl jq
+# Install git, curl, jq, python, make, and g++ for fetching latest release and building native modules
+RUN apk add --no-cache git curl jq python3 make g++
 
 # Get the latest release tag and clone that specific version
 RUN LATEST_TAG=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/releases/latest | jq -r '.tag_name') && \
