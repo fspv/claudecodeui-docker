@@ -87,11 +87,11 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
+          type=ref,event=branch,enable=${{ github.event_name != 'workflow_dispatch' || inputs.claudecodeui_version == '' }}
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=latest,enable=${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != '') }}
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }},enable=true
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }}-claude-${{ steps.version.outputs.claude_version }},enable=true
 
@@ -157,11 +157,11 @@ jobs:
           ### Pull Commands
           ```bash
           # Pull the specific version
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release-tag.outputs.tag_name }}
           
           # Pull with specific architecture
-          docker pull --platform linux/amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          docker pull --platform linux/arm64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          docker pull --platform linux/amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release-tag.outputs.tag_name }}
+          docker pull --platform linux/arm64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release-tag.outputs.tag_name }}
           ```
           
           ### 📦 Version Information
@@ -169,7 +169,7 @@ jobs:
           - **Claude Code**: [`v${{ steps.version.outputs.claude_version }}`](https://www.npmjs.com/package/@anthropic-ai/claude-code/v/${{ steps.version.outputs.claude_version }})
           
           ### 🔗 Links
-          - [Docker Hub](https://hub.docker.com/r/${{ env.IMAGE_NAME }}/tags?page=1&name=${{ github.ref_name }})
+          - [Docker Hub](https://hub.docker.com/r/${{ env.IMAGE_NAME }}/tags?page=1&name=${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release-tag.outputs.tag_name }})
           - [All Available Tags](https://hub.docker.com/r/${{ env.IMAGE_NAME }}/tags)
           
           ### 🤖 Automated Release
