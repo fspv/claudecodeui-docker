@@ -12,6 +12,10 @@ on:
         description: 'Claude Code UI version to build'
         required: false
         type: string
+      claude_code_version:
+        description: 'Claude Code version to use'
+        required: false
+        type: string
 
 env:
   REGISTRY: docker.io
@@ -51,10 +55,16 @@ jobs:
           echo "Building latest version: $LATEST_RELEASE"
         fi
         
-        # Get latest Claude Code version from npm
-        CLAUDE_VERSION=$(curl -s https://registry.npmjs.org/@anthropic-ai/claude-code/latest | jq -r '.version')
-        echo "claude_version=$CLAUDE_VERSION" >> $GITHUB_OUTPUT
-        echo "Using Claude Code version: $CLAUDE_VERSION"
+        # Get Claude Code version (from input or fetch latest)
+        if [ -n "${{ inputs.claude_code_version }}" ] && [ "${{ inputs.claude_code_version }}" != "null" ]; then
+          CLAUDE_VERSION="${{ inputs.claude_code_version }}"
+          echo "claude_version=$CLAUDE_VERSION" >> $GITHUB_OUTPUT
+          echo "Using specified Claude Code version: $CLAUDE_VERSION"
+        else
+          CLAUDE_VERSION=$(curl -s https://registry.npmjs.org/@anthropic-ai/claude-code/latest | jq -r '.version')
+          echo "claude_version=$CLAUDE_VERSION" >> $GITHUB_OUTPUT
+          echo "Using latest Claude Code version: $CLAUDE_VERSION"
+        fi
         
         # Determine release type from tag or from workflow dispatch context
         TAG_TO_CHECK="${{ github.ref_name }}"
@@ -91,7 +101,7 @@ jobs:
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable=${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != '' && inputs.claudecodeui_version != 'null') }}
+          type=raw,value=latest,enable=${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != '' && inputs.claudecodeui_version != 'null' && inputs.claude_code_version != '' && inputs.claude_code_version != 'null') }}
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }},enable=true
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }}-claude-${{ steps.version.outputs.claude_version }},enable=true
 

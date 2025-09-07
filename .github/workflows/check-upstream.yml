@@ -24,6 +24,10 @@ jobs:
       id: upstream-release
       run: |
         LATEST_RELEASE=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/releases/latest | jq -r '.tag_name')
+        if [ "$LATEST_RELEASE" = "null" ] || [ -z "$LATEST_RELEASE" ]; then
+          echo "ERROR: Failed to get latest claudecodeui release"
+          exit 1
+        fi
         echo "latest_tag=$LATEST_RELEASE" >> $GITHUB_OUTPUT
         echo "Latest claudecodeui release: $LATEST_RELEASE"
 
@@ -145,7 +149,25 @@ jobs:
     - name: Trigger Docker build
       if: steps.compare.outputs.needs_build == 'true'
       run: |
+        CLAUDECODEUI_VERSION="${{ steps.upstream-release.outputs.latest_tag }}"
+        CLAUDE_CODE_VERSION="${{ steps.claude-code-version.outputs.latest_version }}"
+        
+        if [ -z "$CLAUDECODEUI_VERSION" ] || [ "$CLAUDECODEUI_VERSION" = "null" ]; then
+          echo "ERROR: Invalid claudecodeui version: '$CLAUDECODEUI_VERSION'"
+          exit 1
+        fi
+        
+        if [ -z "$CLAUDE_CODE_VERSION" ] || [ "$CLAUDE_CODE_VERSION" = "null" ]; then
+          echo "ERROR: Invalid claude code version: '$CLAUDE_CODE_VERSION'"
+          exit 1
+        fi
+        
+        echo "Triggering build with versions:"
+        echo "  ClaudeCodeUI: $CLAUDECODEUI_VERSION"
+        echo "  Claude Code: $CLAUDE_CODE_VERSION"
+        
         gh workflow run build-and-push.yml \
-          --field claudecodeui_version="${{ steps.upstream-release.outputs.latest_tag }}"
+          --field claudecodeui_version="$CLAUDECODEUI_VERSION" \
+          --field claude_code_version="$CLAUDE_CODE_VERSION"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
