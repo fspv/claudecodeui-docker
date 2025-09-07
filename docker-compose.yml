@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  claudecodeui:
+    image: nuhotetotniksvoboden/claudecodeui:latest
+    container_name: claudecodeui
+    ports:
+      - "3001:3001"
+    volumes:
+      # Claude configuration files and directories
+      - ${HOME}/.claude.json:/root/.claude.json
+      - ${HOME}/.claude/.credentials.json:/root/.claude/.credentials.json
+      - ${HOME}/.claude/mcp_servers.json:/root/.claude/mcp_servers.json
+      - ${HOME}/.claude/projects:/root/.claude/projects
+      - ${HOME}/.claude/conversations:/root/.claude/conversations
+      - ${HOME}/.claude/logs:/root/.claude/logs
+      - ${HOME}/.claude/cache:/root/.claude/cache
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
