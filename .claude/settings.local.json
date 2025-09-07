@@ -9,7 +9,9 @@
       "Bash(podman build:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(curl:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(echo)"
     ],
     "deny": []
   }
