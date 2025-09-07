@@ -42,7 +42,7 @@ jobs:
     - name: Get versions
       id: version
       run: |
-        if [ -n "${{ inputs.claudecodeui_version }}" ]; then
+        if [ -n "${{ inputs.claudecodeui_version }}" ] && [ "${{ inputs.claudecodeui_version }}" != "null" ]; then
           echo "claudecodeui_version=${{ inputs.claudecodeui_version }}" >> $GITHUB_OUTPUT
           echo "Building specific version: ${{ inputs.claudecodeui_version }}"
         else
@@ -62,7 +62,7 @@ jobs:
         # For workflow_dispatch, check what would be created
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
           # Get the claudecodeui version (either from input or latest)
-          if [ -n "${{ inputs.claudecodeui_version }}" ]; then
+          if [ -n "${{ inputs.claudecodeui_version }}" ] && [ "${{ inputs.claudecodeui_version }}" != "null" ]; then
             CLAUDECODEUI_VER="${{ inputs.claudecodeui_version }}"
           else
             CLAUDECODEUI_VER="$LATEST_RELEASE"
@@ -87,11 +87,11 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch,enable=${{ github.event_name != 'workflow_dispatch' || inputs.claudecodeui_version == '' }}
+          type=ref,event=branch,enable=${{ github.event_name != 'workflow_dispatch' || inputs.claudecodeui_version == '' || inputs.claudecodeui_version == 'null' }}
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable=${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != '') }}
+          type=raw,value=latest,enable=${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != '' && inputs.claudecodeui_version != 'null') }}
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }},enable=true
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }}-claude-${{ steps.version.outputs.claude_version }},enable=true
 
@@ -110,7 +110,7 @@ jobs:
 
     - name: Determine release tag
       id: release-tag
-      if: github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != ''
+      if: github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != '' && inputs.claudecodeui_version != 'null'
       run: |
         # When triggered by check-upstream workflow, we need to find the appropriate tag
         CLAUDECODEUI_VERSION="${{ steps.version.outputs.claudecodeui_version }}"
