@@ -14,6 +14,9 @@ RUN LATEST_TAG=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/rele
 # Install dependencies
 RUN npm install
 
+# Build the application
+RUN npm run build
+
 # Create directories for Claude configuration files
 RUN mkdir -p /root/.claude
 
@@ -28,4 +31,4 @@ ENV NODE_ENV=production
 EXPOSE ${PORT}
 
 # Start the application
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "server"]

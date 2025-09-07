@@ -7,33 +7,12 @@ A containerized version of [claudecodeui](https://github.com/siteboon/claudecode
 ### Using Podman
 
 ```bash
-podman run -d \
+podman run --replace \
   --name claudecodeui \
   -p 3001:3001 \
   -v ${HOME}/.claude.json:/root/.claude.json \
   -v ${HOME}/.claude/.credentials.json:/root/.claude/.credentials.json \
   -v ${HOME}/.claude/projects:/root/.claude/projects \
-  -v ${HOME}/.claude/mcp_servers.json:/root/.claude/mcp_servers.json \
-  -v ${HOME}/.claude/conversations:/root/.claude/conversations \
-  -v ${HOME}/.claude/logs:/root/.claude/logs \
-  -v ${HOME}/.claude/cache:/root/.claude/cache \
-  --restart unless-stopped \
-  nuhotetotniksvoboden/claudecodeui:latest
-```
-
-### Using Docker
-
-```bash
-docker run -d \
-  --name claudecodeui \
-  -p 3001:3001 \
-  -v ${HOME}/.claude.json:/root/.claude.json \
-  -v ${HOME}/.claude/.credentials.json:/root/.claude/.credentials.json \
-  -v ${HOME}/.claude/projects:/root/.claude/projects \
-  -v ${HOME}/.claude/mcp_servers.json:/root/.claude/mcp_servers.json \
-  -v ${HOME}/.claude/conversations:/root/.claude/conversations \
-  -v ${HOME}/.claude/logs:/root/.claude/logs \
-  -v ${HOME}/.claude/cache:/root/.claude/cache \
   --restart unless-stopped \
   nuhotetotniksvoboden/claudecodeui:latest
 ```
