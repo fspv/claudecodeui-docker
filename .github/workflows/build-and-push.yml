@@ -56,12 +56,26 @@ jobs:
         echo "claude_version=$CLAUDE_VERSION" >> $GITHUB_OUTPUT
         echo "Using Claude Code version: $CLAUDE_VERSION"
         
-        # Determine release type from tag
-        if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-claude-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        # Determine release type from tag or from workflow dispatch context
+        TAG_TO_CHECK="${{ github.ref_name }}"
+        
+        # For workflow_dispatch, check what would be created
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Get the claudecodeui version (either from input or latest)
+          if [ -n "${{ inputs.claudecodeui_version }}" ]; then
+            CLAUDECODEUI_VER="${{ inputs.claudecodeui_version }}"
+          else
+            CLAUDECODEUI_VER="$LATEST_RELEASE"
+          fi
+          # Prioritize combined tag format
+          TAG_TO_CHECK="${CLAUDECODEUI_VER}-claude-${CLAUDE_VERSION}"
+        fi
+        
+        if [[ "$TAG_TO_CHECK" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-claude-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "release_type=combined" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref_name }}" =~ ^claude-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        elif [[ "$TAG_TO_CHECK" =~ ^claude-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "release_type=claude-only" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        elif [[ "$TAG_TO_CHECK" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "release_type=claudecodeui-only" >> $GITHUB_OUTPUT
         else
           echo "release_type=other" >> $GITHUB_OUTPUT
@@ -94,11 +108,42 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Determine release tag
+      id: release-tag
+      if: github.event_name == 'workflow_dispatch' && inputs.claudecodeui_version != ''
+      run: |
+        # When triggered by check-upstream workflow, we need to find the appropriate tag
+        CLAUDECODEUI_VERSION="${{ steps.version.outputs.claudecodeui_version }}"
+        CLAUDE_VERSION="${{ steps.version.outputs.claude_version }}"
+        
+        # Check for combined tag first
+        COMBINED_TAG="${CLAUDECODEUI_VERSION}-claude-${CLAUDE_VERSION}"
+        if git ls-remote --tags origin | grep -q "refs/tags/${COMBINED_TAG}"; then
+          echo "tag_name=${COMBINED_TAG}" >> $GITHUB_OUTPUT
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Found combined tag: ${COMBINED_TAG}"
+        # Check for claudecodeui-only tag
+        elif git ls-remote --tags origin | grep -q "refs/tags/${CLAUDECODEUI_VERSION}"; then
+          echo "tag_name=${CLAUDECODEUI_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Found claudecodeui tag: ${CLAUDECODEUI_VERSION}"
+        # Check for claude-only tag
+        elif git ls-remote --tags origin | grep -q "refs/tags/claude-${CLAUDE_VERSION}"; then
+          echo "tag_name=claude-${CLAUDE_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Found claude tag: claude-${CLAUDE_VERSION}"
+        else
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+          echo "No matching tag found"
+        fi
+
     - name: Create GitHub Release
-      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+      if: |
+        (startsWith(github.ref, 'refs/tags/') && github.event_name == 'push') ||
+        (github.event_name == 'workflow_dispatch' && steps.release-tag.outputs.tag_exists == 'true')
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
+        tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release-tag.outputs.tag_name }}
         name: |
           ${{ steps.version.outputs.release_type == 'combined' && format('Claude Code UI {0} with Claude Code {1}', steps.version.outputs.claudecodeui_version, steps.version.outputs.claude_version) ||
               steps.version.outputs.release_type == 'claude-only' && format('Claude Code {0} Update', steps.version.outputs.claude_version) ||
