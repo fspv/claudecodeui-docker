@@ -39,7 +39,7 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Get claudecodeui version
+    - name: Get versions
       id: version
       run: |
         if [ -n "${{ inputs.claudecodeui_version }}" ]; then
@@ -50,6 +50,11 @@ jobs:
           echo "claudecodeui_version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
           echo "Building latest version: $LATEST_RELEASE"
         fi
+        
+        # Get latest Claude Code version from npm
+        CLAUDE_VERSION=$(curl -s https://registry.npmjs.org/@anthropic-ai/claude-code/latest | jq -r '.version')
+        echo "claude_version=$CLAUDE_VERSION" >> $GITHUB_OUTPUT
+        echo "Using Claude Code version: $CLAUDE_VERSION"
 
     - name: Extract metadata
       id: meta
@@ -63,6 +68,7 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=raw,value=latest,enable={{is_default_branch}}
           type=raw,value=${{ steps.version.outputs.claudecodeui_version }},enable=true
+          type=raw,value=${{ steps.version.outputs.claudecodeui_version }}-claude-${{ steps.version.outputs.claude_version }},enable=true
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -72,5 +78,7 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          CLAUDE_CODE_VERSION=${{ steps.version.outputs.claude_version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max

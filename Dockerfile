@@ -1,6 +1,8 @@
 # Use Node.js LTS as base image
 FROM node:20-alpine
 
+ARG CLAUDE_CODE_VERSION=latest
+
 # Set working directory
 WORKDIR /app
 
@@ -13,6 +15,9 @@ RUN LATEST_TAG=$(curl -s https://api.github.com/repos/siteboon/claudecodeui/rele
 
 # Install dependencies
 RUN npm install
+
+# Install Claude Code
+RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
 # Build the application
 RUN npm run build
