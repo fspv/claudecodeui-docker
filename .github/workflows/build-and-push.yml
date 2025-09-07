@@ -116,25 +116,15 @@ jobs:
         CLAUDECODEUI_VERSION="${{ steps.version.outputs.claudecodeui_version }}"
         CLAUDE_VERSION="${{ steps.version.outputs.claude_version }}"
         
-        # Check for combined tag first
+        # Check for combined tag
         COMBINED_TAG="${CLAUDECODEUI_VERSION}-claude-${CLAUDE_VERSION}"
         if git ls-remote --tags origin | grep -q "refs/tags/${COMBINED_TAG}"; then
           echo "tag_name=${COMBINED_TAG}" >> $GITHUB_OUTPUT
           echo "tag_exists=true" >> $GITHUB_OUTPUT
           echo "Found combined tag: ${COMBINED_TAG}"
-        # Check for claudecodeui-only tag
-        elif git ls-remote --tags origin | grep -q "refs/tags/${CLAUDECODEUI_VERSION}"; then
-          echo "tag_name=${CLAUDECODEUI_VERSION}" >> $GITHUB_OUTPUT
-          echo "tag_exists=true" >> $GITHUB_OUTPUT
-          echo "Found claudecodeui tag: ${CLAUDECODEUI_VERSION}"
-        # Check for claude-only tag
-        elif git ls-remote --tags origin | grep -q "refs/tags/claude-${CLAUDE_VERSION}"; then
-          echo "tag_name=claude-${CLAUDE_VERSION}" >> $GITHUB_OUTPUT
-          echo "tag_exists=true" >> $GITHUB_OUTPUT
-          echo "Found claude tag: claude-${CLAUDE_VERSION}"
         else
           echo "tag_exists=false" >> $GITHUB_OUTPUT
-          echo "No matching tag found"
+          echo "No matching tag found for ${COMBINED_TAG}"
         fi
 
     - name: Create GitHub Release

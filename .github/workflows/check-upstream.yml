@@ -122,7 +122,7 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Create Git tags for new release
+    - name: Create Git tag for new release
       if: steps.compare.outputs.needs_build == 'true'
       run: |
         # Helper function to check if tag exists
@@ -130,7 +130,7 @@ jobs:
           git ls-remote --tags origin | grep -q "refs/tags/$1"
         }
         
-        # Create a tag with both versions
+        # Create a combined tag with both versions
         TAG_NAME="${{ steps.upstream-release.outputs.latest_tag }}-claude-${{ steps.claude-code-version.outputs.latest_version }}"
         
         # Create combined version tag if it doesn't exist
@@ -140,29 +140,6 @@ jobs:
           echo "Created tag: $TAG_NAME"
         else
           echo "Tag already exists: $TAG_NAME"
-        fi
-        
-        # Create claudecodeui version tag if changed and doesn't exist
-        if [ "${{ steps.compare.outputs.claudecodeui_changed }}" = "true" ]; then
-          if ! tag_exists "${{ steps.upstream-release.outputs.latest_tag }}"; then
-            git tag -a "${{ steps.upstream-release.outputs.latest_tag }}" -m "Release: claudecodeui ${{ steps.upstream-release.outputs.latest_tag }}"
-            git push origin "${{ steps.upstream-release.outputs.latest_tag }}"
-            echo "Created tag: ${{ steps.upstream-release.outputs.latest_tag }}"
-          else
-            echo "Tag already exists: ${{ steps.upstream-release.outputs.latest_tag }}"
-          fi
-        fi
-        
-        # Create Claude Code version tag if changed and doesn't exist
-        if [ "${{ steps.compare.outputs.claude_changed }}" = "true" ]; then
-          CLAUDE_TAG="claude-${{ steps.claude-code-version.outputs.latest_version }}"
-          if ! tag_exists "$CLAUDE_TAG"; then
-            git tag -a "$CLAUDE_TAG" -m "Claude Code ${{ steps.claude-code-version.outputs.latest_version }}"
-            git push origin "$CLAUDE_TAG"
-            echo "Created tag: $CLAUDE_TAG"
-          else
-            echo "Tag already exists: $CLAUDE_TAG"
-          fi
         fi
 
     - name: Trigger Docker build
