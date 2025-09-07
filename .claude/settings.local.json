@@ -8,7 +8,8 @@
       "WebFetch(domain:api.github.com)",
       "Bash(podman build:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

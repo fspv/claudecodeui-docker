@@ -21,7 +21,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -55,6 +55,17 @@ jobs:
         CLAUDE_VERSION=$(curl -s https://registry.npmjs.org/@anthropic-ai/claude-code/latest | jq -r '.version')
         echo "claude_version=$CLAUDE_VERSION" >> $GITHUB_OUTPUT
         echo "Using Claude Code version: $CLAUDE_VERSION"
+        
+        # Determine release type from tag
+        if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-claude-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "release_type=combined" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref_name }}" =~ ^claude-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "release_type=claude-only" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "release_type=claudecodeui-only" >> $GITHUB_OUTPUT
+        else
+          echo "release_type=other" >> $GITHUB_OUTPUT
+        fi
 
     - name: Extract metadata
       id: meta
@@ -82,3 +93,53 @@ jobs:
           CLAUDE_CODE_VERSION=${{ steps.version.outputs.claude_version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: |
+          ${{ steps.version.outputs.release_type == 'combined' && format('claudecodeui {0} with Claude Code {1}', steps.version.outputs.claudecodeui_version, steps.version.outputs.claude_version) ||
+              steps.version.outputs.release_type == 'claude-only' && format('Claude Code {0} Update', steps.version.outputs.claude_version) ||
+              steps.version.outputs.release_type == 'claudecodeui-only' && format('claudecodeui {0}', steps.version.outputs.claudecodeui_version) ||
+              format('Release {0}', github.ref_name) }}
+        body: |
+          ## 🐳 Docker Images
+          
+          This release is available as Docker images on Docker Hub:
+          
+          ### Pull Commands
+          ```bash
+          # Pull the specific version
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          
+          # Pull with specific architecture
+          docker pull --platform linux/amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          docker pull --platform linux/arm64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          ```
+          
+          ### Quick Start with Podman
+          ```bash
+          podman run --replace \
+            --name claudecodeui \
+            -p 3001:3001 \
+            -v ${HOME}/.claude:/root/.claude \
+            --restart unless-stopped \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          ```
+          
+          ### 📦 Version Information
+          - **claudecodeui**: [`${{ steps.version.outputs.claudecodeui_version }}`](https://github.com/siteboon/claudecodeui/releases/tag/${{ steps.version.outputs.claudecodeui_version }})
+          - **Claude Code**: [`v${{ steps.version.outputs.claude_version }}`](https://www.npmjs.com/package/@anthropic-ai/claude-code/v/${{ steps.version.outputs.claude_version }})
+          
+          ### 🔗 Links
+          - [Docker Hub](https://hub.docker.com/r/${{ env.IMAGE_NAME }}/tags?page=1&name=${{ github.ref_name }})
+          - [All Available Tags](https://hub.docker.com/r/${{ env.IMAGE_NAME }}/tags)
+          
+          ### 🤖 Automated Release
+          This is an automated release created when new versions were detected.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

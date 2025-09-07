@@ -1,4 +1,4 @@
-name: Check for New claudecodeui Release
+name: Check for New Releases
 
 on:
   schedule:
@@ -27,41 +27,143 @@ jobs:
         echo "latest_tag=$LATEST_RELEASE" >> $GITHUB_OUTPUT
         echo "Latest claudecodeui release: $LATEST_RELEASE"
 
-    - name: Get last built version
+    - name: Get latest Claude Code version
+      id: claude-code-version
+      run: |
+        LATEST_VERSION=$(npm view @anthropic-ai/claude-code version)
+        echo "latest_version=v$LATEST_VERSION" >> $GITHUB_OUTPUT
+        echo "Latest Claude Code version: v$LATEST_VERSION"
+
+    - name: Get last built versions
       id: last-built
       run: |
         if [ -f LAST_BUILD_VERSION ]; then
           LAST_BUILT=$(cat LAST_BUILD_VERSION)
           echo "last_built=$LAST_BUILT" >> $GITHUB_OUTPUT
-          echo "Last built version: $LAST_BUILT"
+          echo "Last built claudecodeui version: $LAST_BUILT"
         else
           echo "last_built=" >> $GITHUB_OUTPUT
-          echo "No previous build found"
+          echo "No previous claudecodeui build found"
+        fi
+        
+        if [ -f LAST_CLAUDE_CODE_VERSION ]; then
+          LAST_CLAUDE=$(cat LAST_CLAUDE_CODE_VERSION)
+          echo "last_claude=$LAST_CLAUDE" >> $GITHUB_OUTPUT
+          echo "Last tracked Claude Code version: $LAST_CLAUDE"
+        else
+          echo "last_claude=" >> $GITHUB_OUTPUT
+          echo "No previous Claude Code version tracked"
         fi
 
     - name: Compare versions
       id: compare
       run: |
-        LATEST="${{ steps.upstream-release.outputs.latest_tag }}"
-        LAST_BUILT="${{ steps.last-built.outputs.last_built }}"
+        LATEST_CLAUDECODEUI="${{ steps.upstream-release.outputs.latest_tag }}"
+        LAST_CLAUDECODEUI="${{ steps.last-built.outputs.last_built }}"
+        LATEST_CLAUDE="${{ steps.claude-code-version.outputs.latest_version }}"
+        LAST_CLAUDE="${{ steps.last-built.outputs.last_claude }}"
         
-        if [ "$LATEST" != "$LAST_BUILT" ]; then
+        CLAUDECODEUI_CHANGED=false
+        CLAUDE_CHANGED=false
+        
+        if [ "$LATEST_CLAUDECODEUI" != "$LAST_CLAUDECODEUI" ]; then
+          CLAUDECODEUI_CHANGED=true
+          echo "New claudecodeui version: $LATEST_CLAUDECODEUI (was: $LAST_CLAUDECODEUI)"
+        fi
+        
+        if [ "$LATEST_CLAUDE" != "$LAST_CLAUDE" ]; then
+          CLAUDE_CHANGED=true
+          echo "New Claude Code version: $LATEST_CLAUDE (was: $LAST_CLAUDE)"
+        fi
+        
+        if [ "$CLAUDECODEUI_CHANGED" = "true" ] || [ "$CLAUDE_CHANGED" = "true" ]; then
           echo "needs_build=true" >> $GITHUB_OUTPUT
-          echo "New version detected: $LATEST (was: $LAST_BUILT)"
+          echo "claudecodeui_changed=$CLAUDECODEUI_CHANGED" >> $GITHUB_OUTPUT
+          echo "claude_changed=$CLAUDE_CHANGED" >> $GITHUB_OUTPUT
+          echo "Build needed due to version changes"
         else
           echo "needs_build=false" >> $GITHUB_OUTPUT
-          echo "Already up to date: $LATEST"
+          echo "All versions up to date"
         fi
 
-    - name: Update version file
+    - name: Update version files
       if: steps.compare.outputs.needs_build == 'true'
       run: |
-        echo "${{ steps.upstream-release.outputs.latest_tag }}" > LAST_BUILD_VERSION
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add LAST_BUILD_VERSION
-        git commit -m "chore: Update to claudecodeui ${{ steps.upstream-release.outputs.latest_tag }}"
+        
+        # Update claudecodeui version if changed
+        if [ "${{ steps.compare.outputs.claudecodeui_changed }}" = "true" ]; then
+          echo "${{ steps.upstream-release.outputs.latest_tag }}" > LAST_BUILD_VERSION
+          git add LAST_BUILD_VERSION
+        fi
+        
+        # Update Claude Code version if changed
+        if [ "${{ steps.compare.outputs.claude_changed }}" = "true" ]; then
+          echo "${{ steps.claude-code-version.outputs.latest_version }}" > LAST_CLAUDE_CODE_VERSION
+          git add LAST_CLAUDE_CODE_VERSION
+        fi
+        
+        # Commit changes
+        COMMIT_MSG="chore: Update versions"
+        if [ "${{ steps.compare.outputs.claudecodeui_changed }}" = "true" ] && [ "${{ steps.compare.outputs.claude_changed }}" = "true" ]; then
+          COMMIT_MSG="chore: Update claudecodeui to ${{ steps.upstream-release.outputs.latest_tag }} and Claude Code to ${{ steps.claude-code-version.outputs.latest_version }}"
+        elif [ "${{ steps.compare.outputs.claudecodeui_changed }}" = "true" ]; then
+          COMMIT_MSG="chore: Update claudecodeui to ${{ steps.upstream-release.outputs.latest_tag }}"
+        elif [ "${{ steps.compare.outputs.claude_changed }}" = "true" ]; then
+          COMMIT_MSG="chore: Update Claude Code to ${{ steps.claude-code-version.outputs.latest_version }}"
+        fi
+        
+        git commit -m "$COMMIT_MSG"
         git push
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Create Git tags for new release
+      if: steps.compare.outputs.needs_build == 'true'
+      run: |
+        # Helper function to check if tag exists
+        tag_exists() {
+          git ls-remote --tags origin | grep -q "refs/tags/$1"
+        }
+        
+        # Create a tag with both versions
+        TAG_NAME="${{ steps.upstream-release.outputs.latest_tag }}-claude-${{ steps.claude-code-version.outputs.latest_version }}"
+        
+        # Create combined version tag if it doesn't exist
+        if ! tag_exists "$TAG_NAME"; then
+          git tag -a "$TAG_NAME" -m "Release: claudecodeui ${{ steps.upstream-release.outputs.latest_tag }} with Claude Code ${{ steps.claude-code-version.outputs.latest_version }}"
+          git push origin "$TAG_NAME"
+          echo "Created tag: $TAG_NAME"
+        else
+          echo "Tag already exists: $TAG_NAME"
+        fi
+        
+        # Create claudecodeui version tag if changed and doesn't exist
+        if [ "${{ steps.compare.outputs.claudecodeui_changed }}" = "true" ]; then
+          if ! tag_exists "${{ steps.upstream-release.outputs.latest_tag }}"; then
+            git tag -a "${{ steps.upstream-release.outputs.latest_tag }}" -m "Release: claudecodeui ${{ steps.upstream-release.outputs.latest_tag }}"
+            git push origin "${{ steps.upstream-release.outputs.latest_tag }}"
+            echo "Created tag: ${{ steps.upstream-release.outputs.latest_tag }}"
+          else
+            echo "Tag already exists: ${{ steps.upstream-release.outputs.latest_tag }}"
+          fi
+        fi
+        
+        # Create Claude Code version tag if changed and doesn't exist
+        if [ "${{ steps.compare.outputs.claude_changed }}" = "true" ]; then
+          CLAUDE_TAG="claude-${{ steps.claude-code-version.outputs.latest_version }}"
+          if ! tag_exists "$CLAUDE_TAG"; then
+            git tag -a "$CLAUDE_TAG" -m "Claude Code ${{ steps.claude-code-version.outputs.latest_version }}"
+            git push origin "$CLAUDE_TAG"
+            echo "Created tag: $CLAUDE_TAG"
+          else
+            echo "Tag already exists: $CLAUDE_TAG"
+          fi
+        fi
 
     - name: Trigger Docker build
       if: steps.compare.outputs.needs_build == 'true'

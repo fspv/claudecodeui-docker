@@ -60,12 +60,15 @@ Pre-built images are available on Docker Hub: `nuhotetotniksvoboden/claudecodeui
 
 ## Automated Builds
 
-This repository automatically tracks the [claudecodeui](https://github.com/siteboon/claudecodeui) releases and builds updated Docker images:
+This repository automatically tracks both [claudecodeui](https://github.com/siteboon/claudecodeui) and [@anthropic-ai/claude-code](https://www.npmjs.com/package/@anthropic-ai/claude-code) releases and builds updated Docker images:
 
 ### Daily Automated Checks
-- A GitHub Action runs daily at 6:00 UTC to check for new claudecodeui releases
-- If a new release is detected, it automatically triggers a Docker build
-- The system ensures you always have the latest stable version available
+- A GitHub Action runs daily at 6:00 UTC to check for new claudecodeui and Claude Code releases
+- If a new release is detected, it automatically:
+  - Updates version tracking files
+  - Creates Git tags for the release
+  - Triggers a Docker build with the new versions
+- The system ensures you always have the latest stable versions available
 
 ### Manual Triggering
 You can also manually trigger builds:
@@ -77,10 +80,23 @@ gh workflow run build-and-push.yml
 gh workflow run build-and-push.yml --field claudecodeui_version=v1.8.0
 ```
 
+### Git Tags and GitHub Releases
+The automation creates multiple tags for better version tracking:
+- `v1.8.0` - claudecodeui version tag
+- `claude-v1.0.108` - Claude Code version tag  
+- `v1.8.0-claude-v1.0.108` - Combined version tag
+
+Each tag automatically creates a GitHub release with:
+- Direct links to the corresponding Docker images
+- Version information for both components
+- Ready-to-use pull commands
+- Quick start instructions
+
 ### Docker Tags
-Images are tagged with both:
+Docker images are tagged with:
 - `latest` - Always points to the most recent build
-- Version-specific tags (e.g., `v1.8.0`) - For pinning to specific claudecodeui versions
+- `v1.8.0` - claudecodeui version-specific tag
+- `v1.8.0-claude-1.0.108` - Combined version tag showing both components
 
 ### Setup Requirements
 To set up automated builds, add these repository secrets:
